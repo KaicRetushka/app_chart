@@ -7,7 +7,11 @@ from build_chart import build_chart
 
 df = pd.DataFrame()
 
+list_colors = []
+list_labels = []
+
 def main(page: ft.Page):
+    global list_colors
     page.title = 'Графики'
 
     def clear_settings_chart():
@@ -67,13 +71,19 @@ def main(page: ft.Page):
     input_name_chart = ft.TextField(label='Название графика', width=250)
 
     def change_settings_chart(df, type):
-        response_build = build_chart(df=df, type=type, name_chart=input_name_chart.value,
-                                             is_grid=checkbox_grid.value, grid_color=brush_grid.color,
-                                             is_legend=checkbox_legend.value, label=input_legend.value,
-                                             fig_color=brush_fig.color, ax_color=brush_ax.color,
-                                             al_color=brush_al.color, column_color=brush_column.color,
-                                             xlabel=input_a_axis.value, ylabel=input_o_axis.value)
+        global list_labels
+        response_build = build_chart(df=df, type=type, name_chart=input_name_chart.value,is_grid=checkbox_grid.value,
+                                     grid_color=brush_grid.color, is_legend=checkbox_legend.value,
+                                     label=input_legend.value, fig_color=brush_fig.color, ax_color=brush_ax.color,
+                                     al_color=brush_al.color, column_color=brush_column.color,
+                                     xlabel=input_a_axis.value, ylabel=input_o_axis.value, list_colors=list_colors,
+                                     list_labels=list_labels)
         image_chart.src_base64 = response_build['base64_image']
+        if checkbox_legend.value:
+            input_lines.visible = True
+            input_lines.value = list_labels[int(dd_lines.value) - 1]
+        else:
+            input_lines.visible = False
         if dd_charts.value == 'Линии':
             input_a_axis.visible = True
             input_o_axis.visible = True
@@ -96,6 +106,7 @@ def main(page: ft.Page):
         page.update()
 
     def change_dd_loading_type(value):
+
         input_host.value = ''
         input_port.value = ''
         input_user.value = ''
@@ -120,6 +131,8 @@ def main(page: ft.Page):
             btn_add_file.visible = True
             if value == 'файл':
                 def result_fp_add_file(e):
+                    global list_colors
+                    global list_labels
                     global df
                     if e.files:
                         clear_settings_chart()
@@ -130,6 +143,8 @@ def main(page: ft.Page):
                             dd_lines.visible = True
                             for i in range(1, response_build['count_lines'] + 1, 1):
                                 dd_lines.options.append(ft.dropdown.Option(f'{i}'))
+                            list_colors = response_build['list_colors']
+                            list_labels = response_build['list_labels']
                         else:
                             dd_lines.visible = False
                             dd_lines.options.clear()
@@ -143,11 +158,14 @@ def main(page: ft.Page):
                 )
             else:
                 def result_fp_add_file(e):
+                    global list_colors
                     if e.files:
                         btn_execute_sql.visible = True
                         btn_add_file.text = e.files[0].name
                         page.update()
                         def click_btn_execute_sql(path):
+                            global list_colors
+                            global list_labels
                             global df
                             input_name_chart.value = ''
                             execute = input_execute.value
@@ -161,12 +179,14 @@ def main(page: ft.Page):
                                     dd_lines.visible = True
                                     for i in range(1, response_build['count_lines'] + 1, 1):
                                         dd_lines.options.append(ft.dropdown.Option(f'{i}'))
+                                    list_colors = response_build['list_colors']
+                                    list_labels = response_build['list_labels']
                                 else:
                                     dd_lines.visible = False
                                     dd_lines.options.clear()
                                 image_chart.src_base64 = response_build['base64_image']
                                 input_name_chart.on_change = lambda e: change_settings_chart(response['df'],
-                                                                                               dd_charts.value)
+                                                                                             dd_charts.value)
                                 checkbox_grid.on_change = lambda e: change_settings_chart(response['df'],
                                                                                           type=dd_charts.value)
                             else:
@@ -201,6 +221,47 @@ def main(page: ft.Page):
         label='Линия',
         hint_text='Выберите линию'
     )
+    def change_dd_lines():
+        global list_colors
+        global list_labels
+        row_lines.visible = True
+        brush_lines.color = list_colors[int(dd_lines.value) - 1]
+        if checkbox_legend.value:
+            input_lines.visible = True
+            input_lines.value = list_labels[int(dd_lines.value) - 1]
+        page.update()
+    dd_lines.on_change = lambda e: change_dd_lines()
+    brush_lines = ft.Icon(ft.Icons.BRUSH)
+    btn_brush_lines = ft.TextButton('цвет линии')
+
+    def click_btn_brush_lines():
+        cp_alert.title = ft.Text('Выберите цвет линии')
+        page.update()
+        cp.color = brush_lines.color
+        page.open(cp_alert)
+
+        def click_ok_cp_alert():
+            global list_colors
+            global df
+            brush_lines.color = cp.color
+            list_colors[int(dd_lines.value) - 1] = cp.color
+            page.close(cp_alert)
+            change_settings_chart(df=df, type=dd_charts.value)
+            page.update()
+
+        ok_cp_alert.on_click = lambda e: click_ok_cp_alert()
+        page.update()
+
+    btn_brush_lines.on_click = lambda e: click_btn_brush_lines()
+    row_lines = ft.Row([brush_lines, btn_brush_lines], visible=False)
+
+    def input_lines():
+        global list_labels
+        list_labels[int(dd_lines.value) - 1] = input_lines.value
+        change_settings_chart(df=df, type=dd_charts.value)
+
+    input_lines = ft.TextField(visible=False)
+
 
     btn_add_file = ft.OutlinedButton('Добавить файл', visible=False)
     fp_add_file = ft.FilePicker()
@@ -211,12 +272,12 @@ def main(page: ft.Page):
     input_password = ft.TextField(label='password', width=200)
     input_database = ft.TextField(label='database', width=200)
     row_settings_db = ft.Row([
-            input_host,
-            input_port,
-            input_user,
-            input_password,
-            input_database
-        ], visible=False)
+        input_host,
+        input_port,
+        input_user,
+        input_password,
+        input_database
+    ], visible=False)
     input_execute = ft.TextField(label='Запрос sql', width=830)
 
     def close_alert():
@@ -230,6 +291,8 @@ def main(page: ft.Page):
     )
 
     def click_btn_execute_sql():
+        global list_colors
+        global list_labels
         global df
         input_name_chart.value = ''
         if dd_loading_type.value != 'файл' and dd_loading_type.value != 'sqlite':
@@ -254,6 +317,8 @@ def main(page: ft.Page):
                 dd_lines.visible = True
                 for i in range(1, response_build['count_lines'] + 1, 1):
                     dd_lines.options.append(ft.dropdown.Option(f'{i}'))
+                list_colors = response_build['list_colors']
+                list_labels = response_build['list_labels']
             else:
                 dd_lines.visible = False
                 dd_lines.options.clear()
@@ -275,7 +340,7 @@ def main(page: ft.Page):
     btn_off_on_df = ft.IconButton(icon=ft.Icons.ARROW_DROP_DOWN)
     container_off_on_df = ft.Container(
         content=ft.Row(
-        [ft.Text('Выбор данных', weight=ft.FontWeight.BOLD), btn_off_on_df],
+            [ft.Text('Выбор данных', weight=ft.FontWeight.BOLD), btn_off_on_df],
             width=1040,
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN
         ),
@@ -417,11 +482,11 @@ def main(page: ft.Page):
     btn_brush_column.on_click = lambda e: click_btn_brush_column()
     row_column = ft.Row([brush_column, btn_brush_column])
 
-    column_right = ft.Column([row_fig, row_ax, row_al, row_column, dd_lines])
+    column_right = ft.Column([row_fig, row_ax, row_al, row_column, dd_lines, row_lines, input_lines])
     column_settings_chart = ft.Column([ft.Row([column_left, column_image, column_right], alignment=ft.MainAxisAlignment.CENTER)],
                                       alignment=ft.MainAxisAlignment.CENTER,
                                       expand=True, visible=False
-                                )
+                                      )
     page.add(alert, cp_alert, container_off_on_df, column_settings_df,
              column_settings_chart
              )

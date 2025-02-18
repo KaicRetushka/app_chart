@@ -7,7 +7,7 @@ matplotlib.use('Agg')
 
 def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', is_legend=False, label='',
                 fig_color='#ffffff', ax_color='#ffffff', al_color='#000000', column_color='#1f77b4', xlabel='',
-                ylabel=''):
+                ylabel='', list_colors=[], list_labels=[]):
     count_column = df.shape[1]
     fig, ax = plt.subplots()
     fig.set_facecolor(color=fig_color)
@@ -28,6 +28,8 @@ def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', 
             list_names.append(df.columns[i])
             list_x.append(df[df.columns[i]][0])
         ax.bar(list_names, list_x, label=label, color=column_color)
+        if is_legend:
+            ax.legend()
     elif type == 'Ленточная':
         list_names = []
         list_x = []
@@ -35,6 +37,8 @@ def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', 
             list_names.append(df.columns[i])
             list_x.append(df[df.columns[i]][0])
         ax.barh(list_names, list_x, label=label, color=column_color)
+        if is_legend:
+            ax.legend()
     elif type == 'Круговая':
         list_labels = []
         list_x = []
@@ -42,24 +46,40 @@ def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', 
             list_labels.append(df.columns[i])
             list_x.append(df[df.columns[i]][0])
         ax.pie(list_x, labels=list_labels)
+        if is_legend:
+            ax.legend()
     else:
         ax.set_xlabel(xlabel, color=al_color)
         ax.set_ylabel(ylabel, color=al_color)
+        count_line = 0
         for i in range(0, count_column, 2):
             if i + 1 != count_column:
                 x_column = df[df.columns[i]]
                 y_column = df[df.columns[i + 1]]
-                ax.plot(x_column, y_column)
+                if len(list_colors) == math.ceil(count_column / 2):
+                    ax.plot(x_column, y_column, color=list_colors[count_line])
+                else:
+                    line = ax.plot(x_column, y_column)
+                    list_colors.append(line[0].get_color())
+                    list_labels.append('')
             else:
                 y_column = df[df.columns[i]]
-                ax.plot(y_column)
-    if is_legend:
-        ax.legend()
+                if len(list_colors) == math.ceil(count_column / 2):
+                    ax.plot(y_column, color=list_colors[count_line])
+                else:
+                    line = ax.plot(y_column)
+                    list_colors.append(line[0].get_color())
+                    list_labels.append('')
+            count_line += 1
+            print(list_labels)
+            if is_legend:
+                ax.legend(labels=list_labels)
     buf = io.BytesIO()
     fig.savefig(buf, format='png')
     plt.close()
     buf.seek(0)
     base64_image = base64.b64encode(buf.read()).decode('utf-8')
     if type == 'Линии':
-        return {'base64_image': base64_image, 'count_lines': math.ceil(count_column / 2)}
+        return {'base64_image': base64_image, 'count_lines': math.ceil(count_column / 2), 'list_colors': list_colors,
+                'list_labels': list_labels}
     return {'base64_image': base64_image}
