@@ -1,5 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import io
 import base64
 import math
@@ -7,7 +8,7 @@ matplotlib.use('Agg')
 
 def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', is_legend=False, label='',
                 fig_color='#ffffff', ax_color='#ffffff', al_color='#000000', column_color='#1f77b4', xlabel='',
-                ylabel='', list_colors=[], list_labels=[]):
+                ylabel='', list_colors=[], list_labels=[], is_pct=False, color_pct=None, is_dowloand=False):
     count_column = df.shape[1]
     fig, ax = plt.subplots()
     fig.set_facecolor(color=fig_color)
@@ -45,7 +46,20 @@ def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', 
         for i in range(count_column):
             list_labels.append(df.columns[i])
             list_x.append(df[df.columns[i]][0])
-        ax.pie(list_x, labels=list_labels)
+        if len(list_colors) == count_column:
+            if is_pct:
+                wedges, texts, autotexts = ax.pie(list_x, labels=list_labels, colors=list_colors, autopct='%1.1f%%')
+            else:
+                ax.pie(list_x, labels=list_labels, colors=list_colors)
+        else:
+            if is_pct:
+                wedges, texts, autotexts = ax.pie(list_x, labels=list_labels, autopct='%1.1f%%')
+            else:
+                wedges, texts = ax.pie(list_x, labels=list_labels)
+            list_colors = [mcolors.to_hex(wedge.get_facecolor()) for wedge in wedges]
+        if is_pct:
+            for autotext in autotexts:
+                autotext.set_color(color_pct)
         if is_legend:
             ax.legend()
     else:
@@ -75,11 +89,16 @@ def build_chart(df, type, name_chart=None, is_grid=False, grid_color='#c2c2c2', 
             if is_legend:
                 ax.legend(labels=list_labels)
     buf = io.BytesIO()
-    fig.savefig(buf, format='png')
+    if is_dowloand:
+        fig.savefig(buf, format='png', dpi=300)
+    else:
+        fig.savefig(buf, format='png')
     plt.close()
     buf.seek(0)
     base64_image = base64.b64encode(buf.read()).decode('utf-8')
     if type == 'Линии':
         return {'base64_image': base64_image, 'count_lines': math.ceil(count_column / 2), 'list_colors': list_colors,
                 'list_labels': list_labels}
+    elif type == 'Круговая':
+        return {'base64_image': base64_image, 'list_colors': list_colors, 'count_parts': count_column}
     return {'base64_image': base64_image}
