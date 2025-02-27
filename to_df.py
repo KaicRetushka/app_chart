@@ -1,23 +1,16 @@
 import sqlite3
-import mysql.connector
+from sqlalchemy import create_engine
 import psycopg2
 import pandas as pd
 import os
 
 def mysql_to_df(execute, host, port, user, password, database):
     try:
-        connection = mysql.connector.connect(
-            host=host,
-            port=port,
-            user=user,
-            password=password,
-            database=database
-        )
+        engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         try:
-            df = pd.read_sql(execute, connection)
+            df = pd.read_sql(execute, engine)
         except:
             return {'is_can': False, 'detail': 'Неверный sql запрос'}
-        connection.close()
         return {'is_can': True, 'df': df}
     except:
         return {'is_can': False, 'detail': 'Неверные данные для подключения'}
